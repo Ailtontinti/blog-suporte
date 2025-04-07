@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('guest')->except('logout','login');
+    }
+
     // Exibe o formulário de login
     public function showLoginForm()
     {
@@ -19,20 +24,20 @@ class LoginController extends Controller
     {
         // Validação dos dados do formulário
         $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => ['required', 'email'],
+            'password' => ['required'],
         ]);
 
         // Tentativa de autenticação
         if (Auth::attempt($credentials)) {
-            // Redireciona para a página inicial se a autenticação for bem-sucedida
+            // Redireciona para a página de posts se a autenticação for bem-sucedida
             $request->session()->regenerate();
-            return redirect()->intended('/');
+            return redirect()->intended('posts');
         }
 
         // Redireciona de volta para o formulário de login com uma mensagem de erro
         return back()->withErrors([
-            'email' => 'As credenciais fornecidas não correspondem aos nossos registros.',
+            'email' => 'As credenciais fornecidas estão incorretas.',
         ]);
     }
 
@@ -44,5 +49,13 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * Redirecionar após login bem-sucedido.
+     */
+    protected function authenticated(Request $request, $user)
+    {
+        return redirect()->route('posts.index');
     }
 }

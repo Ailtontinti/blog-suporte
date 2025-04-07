@@ -4,9 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Post;
+use App\Models\Section;
 use Illuminate\Support\Facades\Storage;
 
-class PostController extends \Illuminate\Routing\Controller
+class PostController extends Controller
 {
     // Construtor com middleware
     public function __construct()
@@ -14,105 +15,132 @@ class PostController extends \Illuminate\Routing\Controller
         $this->middleware('auth')->except('index', 'show');
     }
 
-    // Exibe a lista de posts com paginação
+    // Lista os posts com paginação
     public function index()
     {
-        // Obter os últimos posts
-        $recentPosts = Post::orderBy('created_at', 'desc')->take(5)->get();
         $posts = Post::latest()->paginate(10);
-
-        return view('posts.index', compact('recentPosts', 'posts'));
+        return view('posts.index', compact('posts'));
     }
 
-    // Exibe o formulário para criação de um novo post
+    // Exibe o formulário de criação
     public function create()
     {
         return view('posts.create');
     }
 
-    // Armazena um novo post no banco de dados
+    // Armazena um novo post
     public function store(Request $request)
     {
-        // Validação dos dados do formulário
+        // Corrigir validações
         $validatedData = $request->validate([
             'title' => 'required|max:255',
-            'content' => 'required',
+            'sections' => 'required|array',
+            'sections.*.type' => 'required|in:text,media',
+            'sections.*.content' => 'required_if:sections.*.type,text',
+            'sections.*.file' => 'required_if:sections.*.type,media|file|mimes:jpg,png,jpeg,gif,mp4,mov,avi|max:20480',
         ]);
 
-        // Criação do novo post
-        $post = new Post();
-        $post->title = $validatedData['title'];
-        $post->content = $validatedData['content'];
-        $post->save();
+        // Cria o post
+        $post = Post::create([
+            'title' => $validatedData['title'],
+        ]);
 
-        // Redireciona para a página de visualização do post
-        return redirect()->route('posts.show', $post->id);
+        // Cria as seções
+        foreach ($request->sections as $index => $sectionData) {
+            $type = $sectionData['type'];
+            $section = new Section();
+            $section->post_id = $post->id;
+            $section->type = $type;
+
+            if ($type === 'text') {
+                $section->content = $sectionData['content'];
+            } elseif ($type === 'media' && $request->hasFile("sections.$index.file")) {
+                $file = $request->file("sections.$index.file");
+                $path = $file->store('sections', 'public');
+                $section->content = $path;
+            }
+
+            $section->save();
+        }
+
+        return redirect()->route('posts.show', $post->id)->with('success', 'Post criado com sucesso!');
     }
 
     // Exibe um post específico
     public function show($id)
     {
-        $post = Post::findOrFail($id);
+        $post = Post::with('sections')->findOrFail($id);
         return view('posts.show', compact('post'));
     }
 
-    // Exibe o formulário para edição de um post
+    // Formulário de edição
     public function edit($id)
     {
-        $post = Post::findOrFail($id);
-        $recentPosts = Post::orderBy('created_at', 'desc')->take(5)->get();
-        return view('posts.edit', compact('post', 'recentPosts'));
+        $post = Post::with('sections')->findOrFail($id);
+        return view('posts.edit', compact('post'));
     }
 
-    // Atualiza um post existente
+    // Atualiza um post
     public function update(Request $request, $id)
     {
-        // Validação dos dados do formulário
         $validatedData = $request->validate([
             'title' => 'required|max:255',
             'content' => 'required',
-            'media' => 'nullable|file|mimes:jpg,png,jpeg,gif,mp4,mov,avi|max:20480', // 20MB max
+            'media' => 'nullable|file|mimes:jpg,png,jpeg,gif,mp4,mov,avi|max:20480',
+            'sections.*.content' => 'nullable|string',
+            'new_section' => 'nullable|string',
         ]);
 
-        // Encontrar o post existente
         $post = Post::findOrFail($id);
         $post->title = $validatedData['title'];
         $post->content = $validatedData['content'];
 
-        // Verificar se há um novo arquivo de mídia
         if ($request->hasFile('media')) {
-            // Excluir a mídia antiga, se existir
             if ($post->media) {
                 Storage::delete('public/' . $post->media);
             }
 
-            // Armazenar a nova mídia
-            $path = $request->file('media')->store('media', 'public');
-            $post->media = $path;
+            $post->media = $request->file('media')->store('posts', 'public');
         }
 
-        // Salvar as alterações
         $post->save();
 
-        // Redirecionar para a página de visualização do post
-        return redirect()->route('posts.show', $post->id);
-    }
-
-    // Exclui um post existente
-    public function destroy($id)
-    {
-        // Encontrar o post existente
-        $post = Post::findOrFail($id);
-
-        // Excluir a mídia associada, se existir
-        if ($post->media) {
-            Storage::delete('public/' . $post->media);
+        // Atualiza seções existentes
+        if ($request->has('sections')) {
+            foreach ($request->sections as $index => $sectionData) {
+                $section = $post->sections()->find($index);
+                if ($section) {
+                    $section->content = $sectionData['content'];
+                    $section->save();
+                }
+            }
         }
 
-        // Excluir o post
+        // Adiciona nova seção se existir
+        if ($request->filled('new_section')) {
+            $post->sections()->create([
+                'content' => $request->new_section,
+                'type' => 'text',
+            ]);
+        }
+
+        return redirect()->route('posts.show', $post->id)->with('success', 'Post atualizado com sucesso!');
+    }
+
+    // Deleta post
+    public function destroy($id)
+    {
+        $post = Post::findOrFail($id);
+
+        foreach ($post->sections as $section) {
+            if ($section->type !== 'text' && $section->content) {
+                Storage::delete('public/' . $section->content);
+            }
+        }
+
+        $post->sections()->delete();
         $post->delete();
 
-        // Redirecionar para a lista de posts com uma mensagem de sucesso
         return redirect()->route('posts.index')->with('success', 'Post deletado com sucesso.');
     }
 }
