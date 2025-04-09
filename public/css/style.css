@@ -36,6 +36,21 @@
             z-index: 2;
             text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
         }
+        .banner .banner-text h1 {
+            font-size: 3em;
+            margin: 0;
+        }
+        .banner .banner-text p {
+            font-size: 1.5em;
+        }
+        .banner .banner-text a {
+            background-color: #00d1b2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+
 
         .footer {
             background: #293748;
@@ -57,3 +72,8 @@
             max-height: 250px;
             object-fit: cover;
         }
+
+        .post-content .section-text, 
+.post-content .section-media {
+    margin-bottom: 20px;
+}

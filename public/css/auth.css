@@ -1,0 +1,13 @@
+/* auth.css */
+.center-login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Faz com que a altura mínima seja 100% da altura da tela */
+}
+
+.card {
+    width: 100%;
+    max-width: 400px; /* Define a largura máxima do card */
+    margin: 0 auto; /* Centraliza o card */
+}

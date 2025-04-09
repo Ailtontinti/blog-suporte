@@ -9,7 +9,7 @@ class Section extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['post_id', 'content', 'type'];
+    protected $fillable = ['post_id', 'type', 'content'];
 
     // Relacionamento com Post
     public function post()

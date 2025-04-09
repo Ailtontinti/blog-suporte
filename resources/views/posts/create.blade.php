@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="card p-4 shadow-sm">
-        <h1 class="text-center">Criar Novo Post</h1>
+        <h1 class="text-center">Adicionar Post</h1>
 
         <form action="{{ route('posts.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
@@ -10,6 +10,11 @@
             <div class="mb-3">
                 <label class="form-label">Título:</label>
                 <input type="text" name="title" class="form-control" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Mídia:</label>
+                <input type="file" name="media" class="form-control">
             </div>
 
             <div class="mb-3">

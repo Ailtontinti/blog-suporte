@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Post;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 
 class PostController extends Controller
 {
@@ -26,44 +25,50 @@ class PostController extends Controller
     }
 
     public function store(Request $request)
-    {
-        // ... your validation ...
-    
-        $post = Post::create([
-            'title' => $request->title,
-            'category' => $request->category,
-            'content' => '', // Or any initial content for the post itself
-        ]);
-    
-        if ($request->has('sections')) {
-            foreach ($request->sections as $index => $section) {
-                if ($section['type'] === 'text' && !empty($section['content'])) {
-                    $post->sections()->create([
-                        'type' => 'text',
-                        'content' => nl2br(e($section['content'])),
-                    ]);
-                } elseif ($section['type'] === 'media' && $request->hasFile("sections.{$index}.file")) {
-                    $file = $request->file("sections.{$index}.file");
-                    $path = $file->store('public/posts');
-                    $url = Storage::url($path); // Or just save $path
-    
-                    $post->sections()->create([
-                        'type' => 'media',
-                        'content' => $url, // Or $path
-                    ]);
-                }
+{
+    $request->validate([
+        'title' => 'required|string|max:255',
+        'category' => 'required|string',
+        'sections' => 'required|array',
+        'sections.*.type' => 'required|string|in:text,media',
+        'sections.*.content' => 'required_if:sections.*.type,text|string|nullable',
+        'sections.*.file' => 'required_if:sections.*.type,media|file|mimes:jpeg,png,jpg,gif,webp,mp4,webm|max:20480',
+    ]);
+
+    $post = Post::create([
+        'title' => $request->title,
+        'category' => $request->category,
+        'content' => '', // Você pode deixar isso vazio ou colocar algum conteúdo principal inicial
+    ]);
+
+    if ($request->has('sections')) {
+        foreach ($request->sections as $index => $section) {
+            if ($section['type'] === 'text' && !empty($section['content'])) {
+                $post->sections()->create([
+                    'type' => 'text',
+                    'content' => nl2br(e($section['content'])),
+                ]);
+            } elseif ($section['type'] === 'media' && $request->hasFile("sections.{$index}.file")) {
+                $file = $request->file("sections.{$index}.file");
+                $path = $file->store('public/posts');
+
+                $post->sections()->create([
+                    'type' => 'media',
+                    'content' => $path, // Salve o caminho relativo
+                ]);
             }
         }
-    
-        //dd($request->all()); // Keep this for now for debugging
-        return redirect()->route('posts.index')->with('success', 'Post criado com sucesso!');
     }
+
+    return redirect()->route('posts.index')->with('success', 'Post criado com sucesso!');
+}
 
     //public function show($id)
     public function show(Post $post)
     {
         //$post = Post::findOrFail($id);
-        $post = Post::with('sections')->findOrFail($post->id);        
+        $post = Post::with('sections')->findOrFail($post->id);
+        dd($post->sections); // Adicione esta linha para verificar o que está sendo carregado
         return view('posts.show', compact('post'));
     }
 

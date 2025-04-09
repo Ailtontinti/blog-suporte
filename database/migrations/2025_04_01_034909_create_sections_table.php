@@ -11,7 +11,7 @@ class CreateSectionsTable extends Migration
         Schema::create('sections', function (Blueprint $table) {
             $table->id();
             $table->foreignId('post_id')->constrained()->onDelete('cascade'); // Relacionamento com posts
-            $table->enum('type', ['text', 'image', 'video']); // Tipo da seção
+            $table->enum('type', ['text', 'image', 'video','media']); // Tipo da seção
             $table->text('content')->nullable(); // Conteúdo (texto ou caminho do arquivo)
             $table->timestamps();
         });
